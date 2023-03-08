@@ -22,6 +22,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <timer.h>
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -347,6 +348,9 @@ void testanimate(const uint8_t *bitmap, uint8_t w, uint8_t h) {
   }
 }
 
+int i = 0;
+timer timer_OLED; //タイマーの宣言(OLED用)
+
 void setup() {
   Serial.begin(9600);
 
@@ -357,61 +361,44 @@ void setup() {
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
+  timer_OLED.reset(); //タイマーのリセット(OLED用)
 }
 
 void loop() {
   digitalWrite(LED_BUILTIN,LOW);
-  // Show initial display buffer contents on the screen --
-  // the library initializes this with an Adafruit splash screen.
-  display.display();
-  delay(2000); // Pause for 2 seconds
 
-  // Clear the buffer
+  display.display();
   display.clearDisplay();
 
-  // Draw a single pixel in white
-  display.drawPixel(10, 10, SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0,0);
+  display.println("Hi! bro!");
+  display.setCursor(0,10);
+  display.println("What's up?");
+  display.drawLine(0, 21, 128, 21, WHITE);
 
-  // Show the display buffer on the screen. You MUST call display() after
-  // drawing commands to make them visible on screen!
-  display.display();
-  delay(2000);
-  // display.display() is NOT necessary after every single drawing command,
-  // unless that's what you want...rather, you can batch up a bunch of
-  // drawing operations and then update the screen all at once by calling
-  // display.display(). These examples demonstrate both approaches...
-
-  testdrawline();      // Draw many lines
-
-  testdrawrect();      // Draw rectangles (outlines)
-
-  testfillrect();      // Draw rectangles (filled)
-
-  testdrawcircle();    // Draw circles (outlines)
-
-  testfillcircle();    // Draw circles (filled)
-
-  testdrawroundrect(); // Draw rounded rectangles (outlines)
-
-  testfillroundrect(); // Draw rounded rectangles (filled)
-
-  testdrawtriangle();  // Draw triangles (outlines)
-
-  testfilltriangle();  // Draw triangles (filled)
-
-  testdrawchar();      // Draw characters of the default font
-
-  testdrawstyles();    // Draw 'stylized' characters
-
-  testscrolltext();    // Draw scrolling text
-
-  testdrawbitmap();    // Draw a small bitmap image
-
-  // Invert and restore display, pausing in-between
-  display.invertDisplay(true);
-  delay(1000);
-  display.invertDisplay(false);
-  delay(1000);
-
-  // testanimate(logo_bmp, LOGO_WIDTH, LOGO_HEIGHT); // Animate bitmaps
+  display.setTextSize(2);
+  if(timer_OLED.read_ms() > 500) //0.5秒ごとに実行(OLED用)
+  {
+    if(i == 0)
+    {
+      i = 1;
+    }
+    else
+    {
+      i = 0;
+    }
+    timer_OLED.reset(); //タイマーのリセット(OLED用)
+  }
+  if(i == 0)  //白黒反転させたい
+  {
+    display.setTextColor(BLACK, WHITE);
+  }
+  else
+  {
+    display.setTextColor(WHITE);
+  }
+  display.setCursor(0,32);
+  display.println("Check Ball");
 }

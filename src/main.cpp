@@ -348,7 +348,15 @@ void testanimate(const uint8_t *bitmap, uint8_t w, uint8_t h) {
   }
 }
 
-int i = 0;
+
+int flash_OLED = 0;  //ディスプレイの中で白黒点滅させたいときにつかう
+int OLED_select = 0;  //スイッチとか押されたときにどこを選択しているかを示す変数
+int A = 0;  //ステートのための変数
+int Ball_on = 0;  //ボールの有無を示す変数
+double Ball_Dir = 0;  //ボールの方向を示す変数
+double Ball_far = 0;  //ボールの距離を示す変数
+double Ball_Value = 0;  //ボールの最大値を示す変数
+
 timer timer_OLED; //タイマーの宣言(OLED用)
 
 void setup() {
@@ -361,44 +369,140 @@ void setup() {
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
+
+  //OLEDの初期化
+  display.display();
+  display.clearDisplay();
+
   timer_OLED.reset(); //タイマーのリセット(OLED用)
 }
 
 void loop() {
-  digitalWrite(LED_BUILTIN,LOW);
-
-  display.display();
-  display.clearDisplay();
-
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0,0);
-  display.println("Hi! bro!");
-  display.setCursor(0,10);
-  display.println("What's up?");
-  display.drawLine(0, 21, 128, 21, WHITE);
-
-  display.setTextSize(2);
-  if(timer_OLED.read_ms() > 500) //0.5秒ごとに実行(OLED用)
+  if(timer_OLED.read_ms() > 500) //0.5秒ごとに実行(OLEDにかかれてある文字を点滅させるときにこの周期で点滅させる)
   {
-    if(i == 0)
-    {
-      i = 1;
+    if(flash_OLED == 0){
+      flash_OLED = 1;
     }
-    else
-    {
-      i = 0;
+    else{
+      flash_OLED = 0;
     }
     timer_OLED.reset(); //タイマーのリセット(OLED用)
   }
-  if(i == 0)  //白黒反転させたい
+
+  if(A == 0)  //メインメニュー
   {
-    display.setTextColor(BLACK, WHITE);
-  }
-  else
-  {
+    display.display();
+    display.clearDisplay();
+
+    display.setTextSize(1);
     display.setTextColor(WHITE);
+    display.setCursor(0,0);
+    display.println("Hi! bro!");
+    display.setCursor(0,10);
+    display.println("What's up?");
+    display.drawLine(0, 21, 128, 21, WHITE);
+
+
+    if(OLED_select == 0)  //Check Ballを選択しているとき
+    {
+      display.setTextSize(2);
+      if(flash_OLED == 0){  //白黒反転させたい
+        display.setTextColor(BLACK, WHITE);
+      }
+      else{
+        display.setTextColor(WHITE);
+      }
+      display.setCursor(0,34);
+      display.println("Check");
+      display.println("Ball");
+
+      display.fillTriangle(72, 43, 64, 35, 64, 51, WHITE);  //▶の描画
+
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
+      display.setCursor(80,38);
+      display.println("Check");
+      display.println("Line");
+    }
+    else if(OLED_select == 1)  //Check Lineを選択しているとき
+    {
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
+      display.setCursor(0,38);
+      display.println("Check");
+      display.println("Ball");
+
+      display.fillTriangle(56, 43, 64, 35, 64, 51, WHITE);  //◀の描画
+
+      display.setTextSize(2);
+      if(flash_OLED == 0){  //白黒反転させたい
+        display.setTextColor(BLACK, WHITE);
+      }
+      else{
+        display.setTextColor(WHITE);
+      }
+      display.setCursor(70,34);
+      display.println("Check");
+      display.println("Line");
+    }
   }
-  display.setCursor(0,32);
-  display.println("Check Ball");
+  else if(A == 10)  //Check Ball
+  {
+    if(Ball_Value > 600)  //ボールを見つけていたら目印を付けて置く、そしてその変数を使ってボールがあれば値を表示し、ボールがなければ白い四角形を変わりに出す(ここの値は適当につけたから、しおからが勝手に変更して）
+    {
+      Ball_on = 1;  //ボールがある
+    }
+    else
+    {
+      Ball_on = 0;  //ボールがない
+    }
+
+    display.display();
+    display.clearDisplay();
+
+    //ボールの位置状況マップを表示する
+    display.drawCircle(32, 32, 30, WHITE);  //○ 30
+    display.drawCircle(32, 32, 20, WHITE);  //○ 20
+    display.drawCircle(32, 32, 10, WHITE);  //○ 10
+    display.drawLine(0, 32, 64, 32, WHITE); //|
+    display.drawLine(32, 0, 32, 64, WHITE); //-
+
+    //"Ball"と表示する
+    display.setTextSize(2);
+    display.setTextColor(WHITE);
+    display.setCursor(64,0);
+    display.println("Ball");
+
+    //ここから下のコードのテキストをsize1にする
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+
+    //ボールの角度を表示する
+    display.setCursor(64,30);
+    display.println("Dir   :");
+    if(Ball_on == 1){  //ボールがあれば値を表示
+      display.setCursor(96,30);
+      display.println(Ball_Dir);
+    }
+    else{  //ボールがなければ白い四角形を表示
+      display.fillRect(96, 30, 34, 10, WHITE);
+    }
+
+    //ボールの距離を表示する
+    display.setCursor(64,40);
+    display.println("far   :");
+    if(Ball_on == 1){  //ボールがあれば値を表示
+      display.setCursor(96,40);
+      display.println(Ball_far);
+    }
+    else{  //ボールがなければ白い四角形を表示
+      display.fillRect(96, 40, 34, 10, WHITE);
+    }
+
+    //ボールの最大値を表示する
+    display.setCursor(64,50);
+    display.println("Value :");
+    display.setCursor(96,50);
+    display.println(Ball_Value);
+  }
 }

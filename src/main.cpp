@@ -353,14 +353,21 @@ int flash_OLED = 0;  //ディスプレイの中で白黒点滅させたいとき
 int OLED_select = 0;  //スイッチとか押されたときにどこを選択しているかを示す変数
 int A = 0;  //ステートのための変数
 int Ball_on = 0;  //ボールの有無を示す変数
-double Ball_Dir = 0;  //ボールの方向を示す変数
-double Ball_far = 0;  //ボールの距離を示す変数
-double Ball_Value = 0;  //ボールの最大値を示す変数
+double Ball_Dir = 0;   //ボールの方向を示す変数
+double Ball_far = 0;   //ボールの距離を示す変数
+double Ball_Value = 0; //ボールの最大値を示す変数
+double Lvec_Dir = 0;   //ラインの角度を示す変数
+double Lvec_long = 0;  //ラインの長さを示す変数
+double Lwhite = 0;     //白線の平均値
+double Lgreen = 0;     //緑コートの平均値
+int L_side;  //コート上のラインの位置の判定に使う変数(0:左,1:右,999:どこかわからん)
+int LINE_on; //ラインがロボットの下になかったら0,あったら1にする
 
 timer timer_OLED; //タイマーの宣言(OLED用)
 
 void setup() {
   Serial.begin(9600);
+  Serial.setTimeout(50000); //タイムアウト時間の設定
 
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -389,24 +396,30 @@ void loop() {
     timer_OLED.reset(); //タイマーのリセット(OLED用)
   }
 
+
   if(A == 0)  //メインメニュー
   {
+    //OLEDの初期化
     display.display();
     display.clearDisplay();
 
+    //選択画面だということをしらせる言葉を表示
     display.setTextSize(1);
     display.setTextColor(WHITE);
     display.setCursor(0,0);
     display.println("Hi! bro!");
     display.setCursor(0,10);
     display.println("What's up?");
+
+    //文字と選択画面の境目の横線を表示
     display.drawLine(0, 21, 128, 21, WHITE);
 
-
+    //選択画面の表示
     if(OLED_select == 0)  //Check Ballを選択しているとき
     {
+      //Check Ballの文字設定
       display.setTextSize(2);
-      if(flash_OLED == 0){  //白黒反転させたい
+      if(flash_OLED == 0){  //白黒反転　何秒かの周期で白黒が変化するようにタイマーを使っている（flash_OLEDについて調べたらわかる）
         display.setTextColor(BLACK, WHITE);
       }
       else{
@@ -416,6 +429,7 @@ void loop() {
       display.println("Check");
       display.println("Ball");
 
+      //選択画面で矢印マークを中央に表示
       display.fillTriangle(72, 43, 64, 35, 64, 51, WHITE);  //▶の描画
 
       display.setTextSize(1);
@@ -432,10 +446,11 @@ void loop() {
       display.println("Check");
       display.println("Ball");
 
+      //選択画面で矢印マークを中央に表示
       display.fillTriangle(56, 43, 64, 35, 64, 51, WHITE);  //◀の描画
 
       display.setTextSize(2);
-      if(flash_OLED == 0){  //白黒反転させたい
+      if(flash_OLED == 0){  //白黒反転　何秒かの周期で白黒が変化するようにタイマーを使っている（flash_OLEDについて調べたらわかる）
         display.setTextColor(BLACK, WHITE);
       }
       else{
@@ -478,31 +493,155 @@ void loop() {
     display.setTextColor(WHITE);
 
     //ボールの角度を表示する
-    display.setCursor(64,30);
+    display.setCursor(64,24);
     display.println("Dir   :");
     if(Ball_on == 1){  //ボールがあれば値を表示
-      display.setCursor(96,30);
+      display.setCursor(96,24);
       display.println(Ball_Dir);
     }
     else{  //ボールがなければ白い四角形を表示
-      display.fillRect(96, 30, 34, 10, WHITE);
+      display.fillRect(96, 24, 34, 10, WHITE);
     }
 
     //ボールの距離を表示する
-    display.setCursor(64,40);
+    display.setCursor(64,38);
     display.println("far   :");
     if(Ball_on == 1){  //ボールがあれば値を表示
-      display.setCursor(96,40);
+      display.setCursor(96,38);
       display.println(Ball_far);
     }
     else{  //ボールがなければ白い四角形を表示
-      display.fillRect(96, 40, 34, 10, WHITE);
+      display.fillRect(96, 38, 34, 10, WHITE);
     }
 
     //ボールの最大値を表示する
-    display.setCursor(64,50);
+    display.setCursor(64,52);
     display.println("Value :");
-    display.setCursor(96,50);
+    display.setCursor(96,52);
     display.println(Ball_Value);
+  }
+  else if(A == 20)  //Check Line
+  {
+    display.display();
+    display.clearDisplay();
+
+    //ラインの位置状況マップを表示する
+    display.drawCircle(32, 32, 30, WHITE);  //○ 30
+
+    //"Line"と表示する
+    display.setTextSize(2);
+    display.setTextColor(WHITE);
+    display.setCursor(64,0);
+    display.println("Line");
+
+    //ここから下のコードのテキストをsize1にする
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+
+    //ラインの角度を表示する
+    display.setCursor(64,20);
+    display.println("Dir   :");
+    if(LINE_on == 1){  //ラインがロボットの下にある
+      display.setCursor(96,20);
+      display.println(Lvec_Dir);
+    }
+    else{  //ラインがロボットの下にない
+      display.fillRect(96, 20, 34, 10, WHITE);
+
+    }
+
+    //ラインの距離を表示する
+    display.setCursor(64,30);
+    display.println("far   :");
+    if(LINE_on == 1){  //ラインがロボットの下にある
+      display.setCursor(96,30);
+      display.println(Lvec_long);
+    }
+    else{  //ラインがロボットの下にない
+      display.fillRect(96, 30, 34, 10, WHITE);
+    }
+
+    //白線の平均値を表示する
+    display.setCursor(64,40);
+    display.println("white :");
+    display.setCursor(96,40);
+    display.println(Lwhite);
+
+    //緑コートの平均値を表示する
+    display.setCursor(64,50);
+    display.println("green :");
+    display.setCursor(96,50);
+    display.println(Lgreen);
+    
+    //コート上の左右どちら側にいるのかを表示する
+    display.setCursor(64,60);
+    display.println("Side  :");
+    display.setCursor(96,60);
+    if(L_side == 0){  //左側にいる
+      display.println("Left");
+    }
+    else if(L_side == 1){  //右側にいる
+      display.println("Right");
+    }
+    else{  //どちらでもない
+      display.println("None");
+    }
+  }
+
+  //シリアルモニタで値を入力していろいろ変更できるようにしとく
+  Serial.println("What do you want to put in?");
+
+  // 返答を受信(タイムアウトまで待つ)
+  String str = Serial.readString();
+
+  if(str == "A")  //ステート変更したいと希望があったら
+  {
+    Serial.println("A...ok SO,put number");
+
+    // 返答を受信(タイムアウトまで待つ)
+    String str_num = Serial.readString();
+
+    A = str_num.toInt();
+  }
+  else if(str == "OLED_select")  //選択画面でラインチェックかボールチェックかを変更したかったら
+  {
+    Serial.println("OLED_select...ok SO,put number");
+
+    // 返答を受信(タイムアウトまで待つ)
+    String str_num = Serial.readString();
+
+    OLED_select = str_num.toInt();
+  }
+  else if(str == "Ball_on")  //ボールの有無を変更したいと希望があったら
+  {
+    Serial.println("Ball_on...ok SO,put number");
+
+    // 返答を受信(タイムアウトまで待つ)
+    String str_num = Serial.readString();
+
+    Ball_on = str_num.toInt();
+  }
+  else if(str == "LINE_on")  //ライン上にロボットがあるかどうか変更したいと希望があったら
+  {
+    Serial.println("LINE_on...ok SO,put number");
+
+    // 返答を受信(タイムアウトまで待つ)
+    String str_num = Serial.readString();
+
+    LINE_on = str_num.toInt();
+  }
+  else if(str == "L_side")  //ロボットの位置を変更したいと希望があったら
+  {
+    Serial.println ("L_side...ok SO,put number");
+
+    // 返答を受信(タイムアウトまで待つ)
+    String str_num = Serial.readString();
+
+    L_side = str_num.toInt();
+  }
+  else
+  {
+    //それ以外の文字列が入力されたら
+    Serial.println("Error");
   }
 }
